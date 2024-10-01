@@ -6,6 +6,11 @@ create_version() {
   mkdir -p "${PYENV_ROOT}/versions/$1"
 }
 
+create_alias() {
+  mkdir -p "${PYENV_ROOT}/versions"
+  ln -s "$2" "${PYENV_ROOT}/versions/$1"
+}
+
 setup() {
   mkdir -p "$PYENV_TEST_DIR"
   cd "$PYENV_TEST_DIR"
@@ -15,6 +20,14 @@ stub_system_python() {
   local stub="${PYENV_TEST_DIR}/bin/python"
   mkdir -p "$(dirname "$stub")"
   touch "$stub" && chmod +x "$stub"
+}
+
+create_executable() {
+  local name="$1"
+  local bin="${PYENV_TEST_DIR}/bin"
+  mkdir -p "$bin"
+  sed -Ee '1s/^ +//' > "${bin}/$name"
+  chmod +x "${bin}/$name"
 }
 
 @test "no versions installed" {
@@ -53,18 +66,38 @@ OUT
   assert_success "3.3"
 }
 
-@test "multiple versions" {
+@test "multiple versions and envs" {
   stub_system_python
   create_version "2.7.6"
-  create_version "3.3.3"
   create_version "3.4.0"
+  create_version "3.4.0/envs/foo"
+  create_version "3.4.0/envs/bar"
+  create_version "3.5.2"
   run pyenv-versions
   assert_success
   assert_output <<OUT
 * system (set by ${PYENV_ROOT}/version)
   2.7.6
+  3.4.0
+  3.4.0/envs/bar
+  3.4.0/envs/foo
+  3.5.2
+OUT
+}
+
+@test "skips envs with --skip-envs" {
+  create_version "3.3.3"
+  create_version "3.4.0"
+  create_version "3.4.0/envs/foo"
+  create_version "3.4.0/envs/bar"
+  create_version "3.5.0"
+
+  run pyenv-versions --skip-envs
+    assert_success <<OUT
+* system (set by ${PYENV_ROOT}/version)
   3.3.3
   3.4.0
+  3.5.0
 OUT
 }
 
@@ -130,7 +163,7 @@ OUT
 
 @test "lists symlinks under versions" {
   create_version "2.7.8"
-  ln -s "2.7.8" "${PYENV_ROOT}/versions/2.7"
+  create_alias "2.7" "2.7.8"
 
   run pyenv-versions --bare
   assert_success
@@ -142,9 +175,9 @@ OUT
 
 @test "doesn't list symlink aliases when --skip-aliases" {
   create_version "1.8.7"
-  ln -s "1.8.7" "${PYENV_ROOT}/versions/1.8"
+  create_alias "1.8" "1.8.7"
   mkdir moo
-  ln -s "${PWD}/moo" "${PYENV_ROOT}/versions/1.9"
+  create_alias "1.9" "${PWD}/moo"
 
   run pyenv-versions --bare --skip-aliases
   assert_success
@@ -160,4 +193,59 @@ OUT
 
   run pyenv-versions --bare
   assert_success ".venv"
+}
+
+@test "sort supports version sorting" {
+  create_version "1.9.0"
+  create_version "1.53.0"
+  create_version "1.218.0"
+  create_executable sort <<SH
+#!$BASH
+cat >/dev/null
+if [ "\$1" == "--version-sort" ]; then
+  echo "${PYENV_ROOT}/versions/1.9.0"
+  echo "${PYENV_ROOT}/versions/1.53.0"
+  echo "${PYENV_ROOT}/versions/1.218.0"
+else exit 1
+fi
+SH
+
+  run pyenv-versions --bare
+  assert_success
+  assert_output <<OUT
+1.9.0
+1.53.0
+1.218.0
+OUT
+}
+
+@test "sort doesn't support version sorting" {
+  create_version "1.9.0"
+  create_version "1.53.0"
+  create_version "1.218.0"
+  create_executable sort <<SH
+#!$BASH
+exit 1
+SH
+
+  run pyenv-versions --bare
+  assert_success
+  assert_output <<OUT
+1.218.0
+1.53.0
+1.9.0
+OUT
+}
+
+@test "non-bare output shows symlink contents" {
+  create_version "1.9.0"
+  create_alias "link" "1.9.0"
+
+  run pyenv-versions
+  assert_success
+  assert_output <<OUT
+* system (set by ${PYENV_ROOT}/version)
+  1.9.0
+  link --> 1.9.0
+OUT
 }

@@ -136,3 +136,34 @@ SH
   PYENV_VERSION= run pyenv-which python
   assert_success "${PYENV_ROOT}/versions/3.4/bin/python"
 }
+
+@test "resolves pyenv-latest prefixes" {
+  create_executable "3.4.2" "python"
+  
+  PYENV_VERSION=3.4 run pyenv-which python
+  assert_success "${PYENV_ROOT}/versions/3.4.2/bin/python"
+}
+
+@test "hooks get resolved version name" {
+  create_hook which echo.bash <<!
+echo version=\$version
+exit
+!
+
+  create_executable "3.4.2" "python"
+
+  PYENV_VERSION=3.4 run pyenv-which python
+  assert_success "version=3.4.2"
+}
+
+@test "skip advice supresses error messages" {
+  create_executable "2.7" "python"
+  create_executable "3.3" "py.test"
+  create_executable "3.4" "py.test"
+
+  PYENV_VERSION=2.7 run pyenv-which py.test --skip-advice
+  assert_failure
+  assert_output <<OUT
+pyenv: py.test: command not found
+OUT
+}

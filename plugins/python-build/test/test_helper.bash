@@ -111,8 +111,10 @@ assert_failure() {
 
 assert_equal() {
   if [ "$1" != "$2" ]; then
-    { echo "expected: $1"
-      echo "actual:   $2"
+    { echo "expected:"
+      echo "$1"
+      echo "actual:"
+      echo "$2"
     } | flunk
   fi
 }
@@ -131,9 +133,35 @@ assert_output_contains() {
     echo "assert_output_contains needs an argument" >&2
     return 1
   fi
-  echo "$output" | $(type -P ggrep grep | head -1) -F "$expected" >/dev/null || {
+  echo "$output" | $(type -P ggrep grep | head -n1) -F "$expected" >/dev/null || {
     { echo "expected output to contain $expected"
       echo "actual: $output"
     } | flunk
   }
 }
+
+# Output a modified PATH that ensures that the given executable is not present,
+# but in which system utils necessary for pyenv operation are still available.
+path_without() {
+  local path=":${PATH}:"
+  for exe; do 
+    local found alt util
+    for found in $(PATH="$path" type -aP "$exe"); do
+      found="${found%/*}"
+      if [ "$found" != "${PYENV_ROOT}/shims" ]; then
+        alt="${PYENV_TEST_DIR}/$(echo "${found#/}" | tr '/' '-')"
+        mkdir -p "$alt"
+        for util in bash head cut readlink greadlink; do
+          if [ -x "${found}/$util" ]; then
+            ln -s "${found}/$util" "${alt}/$util"
+          fi
+        done
+        path="${path/:${found}:/:${alt}:}"
+      fi
+    done
+  done
+  path="${path#:}"
+  path="${path%:}"
+  echo "$path"
+}
+

@@ -20,6 +20,7 @@ The most common subcommands are:
 * [`pyenv exec`](#pyenv-exec)
 * [`pyenv root`](#pyenv-root)
 * [`pyenv prefix`](#pyenv-prefix)
+* [`pyenv latest`](#pyenv-latest)
 * [`pyenv hooks`](#pyenv-hooks)
 * [`pyenv shims`](#pyenv-shims)
 * [`pyenv init`](#pyenv-init)
@@ -228,11 +229,25 @@ Then install the desired versions:
       2.6.8
     * 2.7.6 (set by /home/yyuu/.pyenv/version)
 
+You can also install the latest version of Python in a specific version line by supplying a prefix instead of a complete name:
+
+    $ pyenv install 3.10
+
+See the [`pyenv latest` documentation](#pyenv-latest) for details on prefix resolution.
+
+An older option is to use the `:latest` syntax. For example, to install the latest patch version for Python 3.8 you could do:
+
+    pyenv install 3.8:latest
+
+To install the latest major release for Python 3 try:
+
+    pyenv install 3:latest
+
 ## `pyenv uninstall`
 
-Uninstall a specific Python version.
+Uninstall Python versions.
 
-    Usage: pyenv uninstall [-f|--force] <version>
+    Usage: pyenv uninstall [-f|--force] <version> ...
 
        -f  Attempt to remove the specified version without prompting
            for confirmation. If the version does not exist, do not
@@ -322,6 +337,19 @@ locations of the currently selected versions.
     $ pyenv prefix 3.9.7
     /home/user/.pyenv/versions/3.9.7
 
+## `pyenv latest`
+
+Displays the latest installed or known version with the given prefix
+
+    Usage: pyenv latest [-k|--known] [-q|--quiet] <prefix>
+
+     -k/--known      Select from all known versions instead of installed
+     -q/--quiet      Do not print an error message on resolution failure
+
+Only full prefixes are searched: in the actual name, the given prefix must be followed by a dot or a dash.
+
+Prereleases and versions with specific suffixes (e.g. `-src`) are ignored.
+
 ## `pyenv hooks`
 
 Lists installed hook scripts for a given pyenv command.
@@ -358,11 +386,12 @@ List existing pyenv shims.
 
 Configure the shell environment for pyenv
 
-    Usage: eval "$(pyenv init [-|--path] [--no-rehash] [<shell>])"
+    Usage: eval "$(pyenv init [-|--path] [--no-push-path] [--no-rehash] [<shell>])"
 
       -                    Initialize shims directory, print PYENV_SHELL variable, completions path
                            and shell function
       --path               Print shims path
+      --no-push-path       Do not push shim to the start of PATH if they're already there
       --no-rehash          Add no rehash command to output     
 
 ## `pyenv completions`
