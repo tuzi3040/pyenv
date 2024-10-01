@@ -8,15 +8,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: git fetch origin "$GITHUB_BASE_REF"
-      - id: modified-versions
-        shell: bash
+      - shell: bash
         run: >
           versions=$(git diff "origin/$GITHUB_BASE_REF" --name-only -z
           | perl -ne 'BEGIN {$\="\n";$/="\0";} chomp;
             if (/^plugins\/python-build\/share\/python-build\/(?:([^\/]+)|patches\/([^\/]+)\/.*)$/ and -e $& )
                 { print $1.$2; }' \
           | sort -u);
-          echo "versions=`echo "$versions" | jq -R . | jq -sc .`" >> $GITHUB_OUTPUT
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64);
+          echo "versions<<$EOF" >> $GITHUB_ENV;
+          echo "$versions" >> $GITHUB_ENV;
+          echo "$EOF" >> $GITHUB_ENV;
+      - id: modified-versions
+        run: |
+          echo "versions=`echo "${{ env.versions }}" | jq -R . | jq -sc .`" >> $GITHUB_OUTPUT
   macos_build:
     needs: discover_modified_scripts
     if: needs.discover_modified_scripts.outputs.versions != '[""]'
